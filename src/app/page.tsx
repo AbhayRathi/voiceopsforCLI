@@ -16,7 +16,7 @@ import StatusTimeline from "@/components/StatusTimeline";
 import TerminalOutput from "@/components/TerminalOutput";
 import VoiceControl from "@/components/VoiceControl";
 import { buildPlan, summarizeReadiness } from "@/lib/commands";
-import { evaluateSession } from "@/lib/evaluator";
+import { evaluateSession as evaluateSessionLocal } from "@/lib/evaluator";
 import { getFallbackResponse, getEvaluationSpokenSummary, getReadinessSpokenSummary } from "@/lib/fallbackAgent";
 import { mergeGuardrails } from "@/lib/guardrails";
 import { detectIntent, intentLabel } from "@/lib/intents";
@@ -26,7 +26,6 @@ import { baseSafetyPolicy } from "@/lib/safety";
 import { speakText } from "@/lib/speech";
 import {
   CommandExecution,
-  EvaluationResult,
   Intent,
   LatencyMetrics,
   PendingConfirmation,
@@ -35,6 +34,7 @@ import {
   SessionEvent,
   WorkflowStatus,
 } from "@/lib/types";
+import { EvaluationResult } from "@/lib/evaluation/types";
 
 const pushProposal = ["git add .", "git commit -m \"...\"", "git push"];
 const MAX_EXPLAIN_LINES = 3;
@@ -345,36 +345,92 @@ export default function Home() {
     advanceStatus("complete");
   };
 
-  const evaluate = () => {
+  const evaluate = async () => {
     const evalStart = startTimer();
     advanceStatus("evaluating");
 
-    const result = evaluateSession({
-      events,
-      commands,
-      intents: intentHistory,
-      latestTestOutput: commands.find((command) => command.id === "tests")?.output,
-    });
-    setEvaluation(result);
-    addEvent("evaluation", `Production Ops Score ${result.productionOpsScore}/100`);
+    try {
+      const response = await fetch("/api/evaluate-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionLog: { events, commands },
+          context: {
+            readinessScore: readiness?.score,
+            targetRepo: repoRoot ?? undefined,
+            demoMode,
+            intents: intentHistory,
+            latestTestOutput: commands.find((command) => command.id === "tests")?.output,
+          },
+        }),
+      });
 
-    const evalMs = elapsed(evalStart);
+      if (!response.ok) {
+        throw new Error("Evaluation API failed");
+      }
 
-    if (result.learnedGuardrails.length) {
-      advanceStatus("adding_guardrail");
-      setGuardrails((current) => mergeGuardrails(current, result.learnedGuardrails));
-      result.learnedGuardrails.forEach((guardrail) => addEvent("guardrail_added", guardrail));
+      const result: EvaluationResult = await response.json();
+      setEvaluation(result);
+      addEvent("evaluation", `Production Ops Score ${result.score}/100`);
+
+      const evalMs = elapsed(evalStart);
+
+      if (result.learnedGuardrails.length) {
+        advanceStatus("adding_guardrail");
+        setGuardrails((current) => mergeGuardrails(current, result.learnedGuardrails));
+        result.learnedGuardrails.forEach((guardrail) => addEvent("guardrail_added", guardrail));
+      }
+
+      advanceStatus("complete");
+      const spokenSummary = getEvaluationSpokenSummary(result.score, result.learnedGuardrails.length);
+      speakReply(spokenSummary);
+
+      setLatencyMetrics((prev) => ({
+        ...prev,
+        evaluationMs: evalMs,
+        totalMs: sessionStartRef.current ? elapsed(sessionStartRef.current) : null,
+      }));
+    } catch {
+      // Fallback to local evaluation if API fails
+      const localResult = evaluateSessionLocal({
+        events,
+        commands,
+        intents: intentHistory,
+        latestTestOutput: commands.find((command) => command.id === "tests")?.output,
+      });
+
+      const result: EvaluationResult = {
+        provider: "local",
+        connected: true,
+        fallbackUsed: false,
+        score: localResult.productionOpsScore,
+        categories: localResult.categories.map(({ name, status, explanation }) => ({ name, status, explanation })),
+        failures: localResult.fails,
+        learnedGuardrails: localResult.learnedGuardrails,
+        summary: "Local evaluation complete (API unavailable).",
+      };
+
+      setEvaluation(result);
+      addEvent("evaluation", `Production Ops Score ${result.score}/100`);
+
+      const evalMs = elapsed(evalStart);
+
+      if (result.learnedGuardrails.length) {
+        advanceStatus("adding_guardrail");
+        setGuardrails((current) => mergeGuardrails(current, result.learnedGuardrails));
+        result.learnedGuardrails.forEach((guardrail) => addEvent("guardrail_added", guardrail));
+      }
+
+      advanceStatus("complete");
+      const spokenSummary = getEvaluationSpokenSummary(result.score, result.learnedGuardrails.length);
+      speakReply(spokenSummary);
+
+      setLatencyMetrics((prev) => ({
+        ...prev,
+        evaluationMs: evalMs,
+        totalMs: sessionStartRef.current ? elapsed(sessionStartRef.current) : null,
+      }));
     }
-
-    advanceStatus("complete");
-    const spokenSummary = getEvaluationSpokenSummary(result.productionOpsScore, result.learnedGuardrails.length);
-    speakReply(spokenSummary);
-
-    setLatencyMetrics((prev) => ({
-      ...prev,
-      evaluationMs: evalMs,
-      totalMs: sessionStartRef.current ? elapsed(sessionStartRef.current) : null,
-    }));
   };
 
   const handleConfirmationConfirm = () => {
