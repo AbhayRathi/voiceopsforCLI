@@ -390,7 +390,8 @@ export default function Home() {
         evaluationMs: evalMs,
         totalMs: sessionStartRef.current ? elapsed(sessionStartRef.current) : null,
       }));
-    } catch {
+    } catch (err) {
+      console.error("Evaluation API failed, using local fallback:", err);
       // Fallback to local evaluation if API fails
       const localResult = evaluateSessionLocal({
         events,
