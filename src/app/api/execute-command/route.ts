@@ -8,6 +8,7 @@ import { resolveAuditCommand, isAuditUnavailableError } from "@/lib/audit";
 const execFileAsync = promisify(execFile);
 const COMMAND_TIMEOUT_MS = 15000;
 const MAX_BUFFER = 1024 * 1024;
+const AUDIT_COMMAND = "npm audit --audit-level=high";
 
 function isDemoMode(): boolean {
   return process.env.DEMO_MODE === "true" || process.env.NEXT_PUBLIC_DEMO_MODE === "true";
@@ -192,17 +193,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (command === "npm audit --audit-level=high") {
+    if (command === AUDIT_COMMAND) {
       const resolved = await resolveAuditCommand(repoDir);
-      const resolvedCmd = resolved.args.join(" ").replace("run ", "npm run ").replace(/^npm /, "npm ");
-      const fullCmd = `${resolved.file} ${resolved.args.join(" ")}`;
+      const resolvedCmd = `${resolved.file} ${resolved.args.join(" ")}`;
+      const usingMock = resolvedCmd !== AUDIT_COMMAND;
       try {
         const { stdout, stderr } = await execFileAsync(resolved.file, resolved.args, {
           cwd: repoDir,
           timeout: COMMAND_TIMEOUT_MS,
           maxBuffer: MAX_BUFFER,
         });
-        const note = fullCmd !== "npm audit --audit-level=high" ? `[Running ${resolvedCmd} per package.json]\n` : "";
+        const note = usingMock ? `[Running ${resolvedCmd} per package.json]\n` : "";
         return NextResponse.json({
           command,
           purpose: body.purpose ?? "",
@@ -240,7 +241,7 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        const note = fullCmd !== "npm audit --audit-level=high" ? `[Running ${resolvedCmd} per package.json]\n` : "";
+        const note = usingMock ? `[Running ${resolvedCmd} per package.json]\n` : "";
         return NextResponse.json({
           command,
           purpose: body.purpose ?? "",
