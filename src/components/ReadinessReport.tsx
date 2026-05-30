@@ -6,33 +6,33 @@ type Props = {
 
 export default function ReadinessReport({ report }: Props) {
   return (
-    <section className="rounded-xl border border-slate-700 bg-slate-900/80 p-4 shadow-lg">
-      <h2 className="text-lg font-semibold">Readiness report panel</h2>
+    <section className="rounded-xl border-2 border-cyan-700/60 bg-slate-900 p-6 shadow-xl ring-1 ring-cyan-900/40">
+      <h2 className="text-xl font-bold text-cyan-100">Readiness report panel</h2>
       {!report ? (
         <p className="mt-2 text-sm text-slate-400">Run “Check if this repo is safe to push” to generate report.</p>
       ) : (
-        <div className="mt-3 space-y-3 text-sm">
-          <div className="rounded border border-cyan-700 bg-cyan-950/40 p-3">
-            <p className="text-sm text-slate-100">Push Readiness Score</p>
-            <p className="text-2xl font-bold text-cyan-300">{report.score}/100</p>
+        <div className="mt-4 space-y-4 text-sm">
+          <div className="rounded-lg border border-cyan-600 bg-cyan-950/60 p-4">
+            <p className="text-sm font-medium text-slate-200">Push Readiness Score</p>
+            <p className="mt-1 text-4xl font-bold text-cyan-300">{report.score}/100</p>
+            <p className="mt-2 text-sm text-slate-300">{report.summary}</p>
           </div>
-          <p className="text-slate-200">{report.summary}</p>
-          <div className="grid gap-2 md:grid-cols-3">
-            <div className="rounded border border-emerald-800 bg-emerald-950/30 p-2">
-              <p className="font-medium text-emerald-300">Passed</p>
-              <ul className="list-disc pl-5 text-slate-200">{report.passed.map((item) => <li key={item}>{item}</li>)}</ul>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded border border-emerald-800 bg-emerald-950/30 p-3">
+              <p className="font-semibold text-emerald-300">Passed</p>
+              <ul className="mt-1 list-disc pl-5 text-slate-200">{report.passed.map((item) => <li key={item}>{item}</li>)}</ul>
             </div>
-            <div className="rounded border border-amber-800 bg-amber-950/30 p-2">
-              <p className="font-medium text-amber-300">Warnings</p>
-              <ul className="list-disc pl-5 text-slate-200">{report.warnings.map((item) => <li key={item}>{item}</li>)}</ul>
+            <div className="rounded border border-amber-800 bg-amber-950/30 p-3">
+              <p className="font-semibold text-amber-300">Warnings</p>
+              <ul className="mt-1 list-disc pl-5 text-slate-200">{report.warnings.map((item) => <li key={item}>{item}</li>)}</ul>
             </div>
-            <div className="rounded border border-rose-800 bg-rose-950/30 p-2">
-              <p className="font-medium text-rose-300">Main blockers</p>
-              <ul className="list-disc pl-5 text-slate-200">{report.blockers.map((item) => <li key={item}>{item}</li>)}</ul>
+            <div className="rounded border border-rose-800 bg-rose-950/30 p-3">
+              <p className="font-semibold text-rose-300">Main blockers</p>
+              <ul className="mt-1 list-disc pl-5 text-slate-200">{report.blockers.map((item) => <li key={item}>{item}</li>)}</ul>
             </div>
           </div>
-          <p className="rounded border border-slate-700 bg-slate-800 p-2 text-slate-100">
-            <span className="font-medium">Recommended next action:</span> {report.recommendation}
+          <p className="rounded border border-cyan-800 bg-cyan-950/30 p-3 font-medium text-cyan-100">
+            <span className="text-slate-300">Recommended next action: </span>{report.recommendation}
           </p>
         </div>
       )}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AgentPlan from "@/components/AgentPlan";
+import CollapsibleSection from "@/components/CollapsibleSection";
 import CommandExecutionPanel from "@/components/CommandExecutionPanel";
 import ConfirmationGate from "@/components/ConfirmationGate";
 import DemoModeBadge from "@/components/DemoModeBadge";
@@ -428,6 +429,7 @@ export default function Home() {
         {/* Full-width status timeline */}
         <StatusTimeline currentStatus={currentStatus} statusHistory={statusHistory} />
 
+        {/* Step 1 + 2: Voice input and agent plan */}
         <div className="grid gap-4 lg:grid-cols-2">
           <VoiceControl
             onSubmitUtterance={(text) => handleUtterance(text, false)}
@@ -444,25 +446,41 @@ export default function Home() {
             }}
           />
           <AgentPlan intent={intentLabel(detectedIntent)} explanation={planExplanation} steps={planSteps} />
+        </div>
 
-          <CommandExecutionPanel commands={commands} />
-          <TerminalOutput lines={terminalLines} />
+        {/* Step 3: Command execution results */}
+        <CommandExecutionPanel commands={commands} />
 
-          <ReadinessReport report={readiness} />
+        {/* Step 4: Main readiness report — visually dominant */}
+        <ReadinessReport report={readiness} />
+
+        {/* Step 4 + 5: Risk decisions and evaluation score */}
+        <div className="grid gap-4 lg:grid-cols-2">
           <SafetyPanel
             policy={activePolicy}
             learnedGuardrails={guardrails}
             latestRiskDecision={latestRiskDecision}
             commands={commands}
           />
-
           <EvaluationPanel evaluation={evaluation} onEvaluate={evaluate} />
-          <SessionTimeline events={events} />
         </div>
 
-        {/* Full-width panels */}
-        <SafetyPolicyPanel />
-        <LatencyBadges metrics={latencyMetrics} />
+        {/* Secondary details — collapsed by default to reduce visual noise */}
+        <CollapsibleSection title="Terminal Output">
+          <TerminalOutput lines={terminalLines} />
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Audit Log">
+          <SessionTimeline events={events} />
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Latency Metrics">
+          <LatencyBadges metrics={latencyMetrics} />
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Safety Policy Table">
+          <SafetyPolicyPanel />
+        </CollapsibleSection>
       </div>
 
       <footer className="mx-auto mt-6 max-w-7xl rounded-lg border border-slate-700 bg-slate-900/80 p-3 text-sm text-slate-300">
