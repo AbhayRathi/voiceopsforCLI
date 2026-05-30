@@ -94,6 +94,25 @@ See `.env.example` for the full list. Key variables:
 
 No LLM key is required for core functionality. `npm install` picks up all dependencies including the optional OpenAI SDK.
 
+## Demo against voiceops-demo-repo
+
+```bash
+# Real mode (requires OpenAI API key and voiceops-demo-repo cloned locally)
+VOICEOPS_TARGET_DIR=/absolute/path/to/voiceops-demo-repo \
+DEMO_MODE=false \
+NEXT_PUBLIC_DEMO_MODE=false \
+OPENAI_API_KEY=your_key_here \
+npm run dev
+```
+
+```bash
+# Fallback demo mode (no API key required)
+VOICEOPS_TARGET_DIR=/absolute/path/to/voiceops-demo-repo \
+DEMO_MODE=true \
+NEXT_PUBLIC_DEMO_MODE=true \
+npm run dev
+```
+
 ## Scripts
 
 ```bash

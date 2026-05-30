@@ -27,7 +27,7 @@ const fallbackByStep: Record<string, Partial<CommandExecution>> = {
     exitCode: 1,
   },
   secret_scan: {
-    output: "No obvious secrets found in changed files.",
+    output: "No obvious secrets found in scanned files.",
     exitCode: 0,
   },
 };

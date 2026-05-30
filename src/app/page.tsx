@@ -37,6 +37,8 @@ import {
 
 const pushProposal = ["git add .", "git commit -m \"...\"", "git push"];
 const MAX_EXPLAIN_LINES = 3;
+const MAX_TERMINAL_LINES = 300;
+const MAX_OUTPUT_LINES_PER_CMD = 40;
 
 function now(): string {
   return new Date().toLocaleTimeString();
@@ -122,10 +124,10 @@ export default function Home() {
 
     try {
       for (const step of steps) {
-        const isSecretScan = step.command === "secret_scan_changed_files";
+        const isSecretScan = step.command === "secret_scan_all_files";
         advanceStatus(isSecretScan ? "scanning_secrets" : "running_checks");
         addEvent("command_proposed", `${step.command} — ${step.purpose}`);
-        setTerminalLines((current) => [...current, `$ ${step.command}`]);
+        setTerminalLines((current) => [...current, `$ ${step.command}`, ""].slice(-MAX_TERMINAL_LINES));
 
         try {
           const response = await fetch("/api/execute-command", {
@@ -138,7 +140,10 @@ export default function Home() {
           const commandResult = applyMockFallback({ ...data, id: step.id });
           localResults.push(commandResult);
 
-          setTerminalLines((current) => [...current, commandResult.output]);
+          const outputLines = commandResult.output
+            .split("\n")
+            .slice(0, MAX_OUTPUT_LINES_PER_CMD);
+          setTerminalLines((current) => [...current, ...outputLines, ""].slice(-MAX_TERMINAL_LINES));
 
           if (commandResult.status === "blocked") {
             addEvent("command_blocked", `${step.command}: blocked — ${commandResult.reason}`);
@@ -150,7 +155,7 @@ export default function Home() {
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : "Unknown error";
-          setTerminalLines((current) => [...current, `Error: ${message}`]);
+          setTerminalLines((current) => [...current, `Error: ${message}`, ""].slice(-MAX_TERMINAL_LINES));
           addEvent("error", `${step.command}: ${message}`);
         }
       }

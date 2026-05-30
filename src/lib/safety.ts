@@ -36,8 +36,9 @@ const allowList: RegExp[] = [
   /^\s*npm\s+run\s+test(\s+.*)?$/i,
   /^\s*npm\s+run\s+lint(\s+.*)?$/i,
   /^\s*npm\s+audit\s+--audit-level=high\s*$/i,
+  /^\s*npm\s+run\s+audit:mock\s*$/i,
   /^\s*find\s+\.\/logs\s+-type\s+f\s+-mtime\s+\+30\s+-print\s*$/i,
-  /^\s*secret_scan_changed_files\s*$/i,
+  /^\s*secret_scan_all_files\s*$/i,
 ];
 
 export function classifyCommandSafety(command: string): SafetyDecision {
