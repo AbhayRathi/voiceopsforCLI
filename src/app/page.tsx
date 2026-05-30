@@ -68,18 +68,24 @@ export default function Home() {
       addEvent("command_proposed", `${step.command} — ${step.purpose}`);
       setTerminalLines((current) => [...current, `$ ${step.command}`]);
 
-      const response = await fetch("/api/execute-command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: step.command, purpose: step.purpose }),
-      });
-      const data = (await response.json()) as Omit<CommandExecution, "id">;
+      try {
+        const response = await fetch("/api/execute-command", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: step.command, purpose: step.purpose }),
+        });
+        const data = (await response.json()) as Omit<CommandExecution, "id">;
 
-      const commandResult = applyMockFallback({ ...data, id: step.id });
-      localResults.push(commandResult);
+        const commandResult = applyMockFallback({ ...data, id: step.id });
+        localResults.push(commandResult);
 
-      setTerminalLines((current) => [...current, commandResult.output]);
-      addEvent(commandResult.status === "blocked" ? "command_blocked" : "command_result", `${step.command}: ${commandResult.status}`);
+        setTerminalLines((current) => [...current, commandResult.output]);
+        addEvent(commandResult.status === "blocked" ? "command_blocked" : "command_result", `${step.command}: ${commandResult.status}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        setTerminalLines((current) => [...current, `Error: ${message}`]);
+        addEvent("command_result", `${step.command}: error — ${message}`);
+      }
     }
 
     setCommands(localResults);
