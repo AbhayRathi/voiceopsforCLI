@@ -40,6 +40,7 @@ export default function Home() {
   const [guardrails, setGuardrails] = useState<string[]>([]);
   const [latestRiskDecision, setLatestRiskDecision] = useState("");
   const [intentHistory, setIntentHistory] = useState<Intent[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
 
   const activePolicy = useMemo(() => mergeGuardrails(baseSafetyPolicy, guardrails), [guardrails]);
 
@@ -62,34 +63,38 @@ export default function Home() {
   };
 
   const runPlan = async (steps: PlanStep[]) => {
+    setIsRunning(true);
     const localResults: CommandExecution[] = [];
+    try {
+      for (const step of steps) {
+        addEvent("command_proposed", `${step.command} — ${step.purpose}`);
+        setTerminalLines((current) => [...current, `$ ${step.command}`]);
 
-    for (const step of steps) {
-      addEvent("command_proposed", `${step.command} — ${step.purpose}`);
-      setTerminalLines((current) => [...current, `$ ${step.command}`]);
+        try {
+          const response = await fetch("/api/execute-command", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ command: step.command, purpose: step.purpose }),
+          });
+          const data = (await response.json()) as Omit<CommandExecution, "id">;
 
-      try {
-        const response = await fetch("/api/execute-command", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command: step.command, purpose: step.purpose }),
-        });
-        const data = (await response.json()) as Omit<CommandExecution, "id">;
+          const commandResult = applyMockFallback({ ...data, id: step.id });
+          localResults.push(commandResult);
 
-        const commandResult = applyMockFallback({ ...data, id: step.id });
-        localResults.push(commandResult);
-
-        setTerminalLines((current) => [...current, commandResult.output]);
-        addEvent(commandResult.status === "blocked" ? "command_blocked" : "command_result", `${step.command}: ${commandResult.status}`);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        setTerminalLines((current) => [...current, `Error: ${message}`]);
-        addEvent("command_result", `${step.command}: error — ${message}`);
+          setTerminalLines((current) => [...current, commandResult.output]);
+          addEvent(commandResult.status === "blocked" ? "command_blocked" : "command_result", `${step.command}: ${commandResult.status}`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Unknown error";
+          setTerminalLines((current) => [...current, `Error: ${message}`]);
+          addEvent("command_result", `${step.command}: error — ${message}`);
+        }
       }
-    }
 
-    setCommands(localResults);
-    return localResults;
+      setCommands(localResults);
+      return localResults;
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   const explainLatestFailure = () => {
@@ -204,6 +209,7 @@ export default function Home() {
           finalText={finalText}
           voiceOn={voiceOn}
           onToggleVoice={() => setVoiceOn((current) => !current)}
+          isRunning={isRunning}
         />
         <AgentPlan intent={intentLabel(detectedIntent)} explanation={planExplanation} steps={planSteps} />
 

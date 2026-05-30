@@ -8,6 +8,7 @@ type Props = {
   finalText: string;
   voiceOn: boolean;
   onToggleVoice: () => void;
+  isRunning: boolean;
 };
 
 const presets = [
@@ -19,7 +20,7 @@ const presets = [
   "Clean everything up.",
 ];
 
-export default function VoiceControl({ onSubmitUtterance, finalText, voiceOn, onToggleVoice }: Props) {
+export default function VoiceControl({ onSubmitUtterance, finalText, voiceOn, onToggleVoice, isRunning }: Props) {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [recording, setRecording] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
@@ -84,11 +85,16 @@ export default function VoiceControl({ onSubmitUtterance, finalText, voiceOn, on
       <div className="mt-4 flex flex-wrap gap-3">
         <button
           type="button"
-          disabled={!supportsVoice}
+          disabled={isRunning || !supportsVoice}
           onClick={toggleRecording}
-          className="rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-600"
+          className="rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-600"
         >
-          {buttonLabel}
+          {isRunning ? (
+            <>
+              Running checks…
+              <span className="ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            </>
+          ) : buttonLabel}
         </button>
         <button
           type="button"
@@ -119,8 +125,9 @@ export default function VoiceControl({ onSubmitUtterance, finalText, voiceOn, on
             <button
               type="button"
               key={preset}
+              disabled={isRunning}
               onClick={() => onSubmitUtterance(preset)}
-              className="rounded-md border border-slate-600 bg-slate-800 px-3 py-1 text-xs text-slate-100 hover:border-cyan-400"
+              className="rounded-md border border-slate-600 bg-slate-800 px-3 py-1 text-xs text-slate-100 hover:border-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {preset}
             </button>
