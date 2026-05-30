@@ -6,6 +6,37 @@ export type Intent =
   | "cleanup_delete"
   | "unknown";
 
+export type WorkflowStatus =
+  | "idle"
+  | "listening"
+  | "transcribing"
+  | "transcribed"
+  | "planning"
+  | "classifying"
+  | "running_checks"
+  | "scanning_secrets"
+  | "generating_report"
+  | "evaluating"
+  | "adding_guardrail"
+  | "complete"
+  | "error";
+
+export type LatencyMetrics = {
+  transcriptionMs: number | null;
+  planningMs: number | null;
+  executionMs: number | null;
+  evaluationMs: number | null;
+  totalMs: number | null;
+  isPreset: boolean;
+};
+
+export type PendingConfirmation = {
+  action: string;
+  phrase: string;
+  reason: string;
+  description: string;
+};
+
 export type RiskLevel = "low" | "medium" | "high" | "critical";
 
 export type DecisionStatus = "allowed" | "requires_confirmation" | "blocked";
@@ -65,11 +96,21 @@ export type SessionEvent = {
   timestamp: string;
   type:
     | "user_utterance"
+    | "transcript_finalized"
+    | "intent_detected"
+    | "plan_created"
     | "agent_response"
     | "command_proposed"
+    | "risk_classified"
+    | "command_allowed"
     | "command_result"
     | "command_blocked"
+    | "confirmation_required"
+    | "command_executed"
+    | "report_generated"
     | "evaluation"
-    | "guardrail_added";
+    | "guardrail_added"
+    | "error";
   detail: string;
+  metadata?: Record<string, unknown>;
 };
