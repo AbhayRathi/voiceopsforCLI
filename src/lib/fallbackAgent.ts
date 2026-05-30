@@ -52,3 +52,7 @@ export function getEvaluationSpokenSummary(score: number, guardrailCount: number
     guardrailCount > 0 ? ` I added ${guardrailCount} guardrail${guardrailCount > 1 ? "s" : ""}.` : "";
   return `Session score is ${score} out of 100.${guardrailText}`;
 }
+
+export function generateFallbackSummary(intent: Intent): FallbackResponse {
+  return getFallbackResponse(intent);
+}

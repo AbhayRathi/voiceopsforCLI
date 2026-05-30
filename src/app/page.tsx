@@ -74,6 +74,7 @@ export default function Home() {
   // Feature 10: Latency metrics
   const [latencyMetrics, setLatencyMetrics] = useState<LatencyMetrics>(emptyLatency());
   const sessionStartRef = useRef<number | null>(null);
+  const recordingStartRef = useRef<number | null>(null);
 
   const activePolicy = useMemo(() => mergeGuardrails(baseSafetyPolicy, guardrails), [guardrails]);
 
@@ -190,7 +191,8 @@ export default function Home() {
     setStatusHistory([]);
     advanceStatus("transcribed");
 
-    const transcriptionMs = isPreset ? null : null; // Transcription timing not measured; use null for accuracy
+    const transcriptionMs = isPreset ? null : (recordingStartRef.current ? Date.now() - recordingStartRef.current : null);
+    recordingStartRef.current = null;
     setLatencyMetrics({ ...emptyLatency(), transcriptionMs, isPreset });
 
     setFinalText(trimmed);
@@ -429,7 +431,12 @@ export default function Home() {
             voiceOn={voiceOn}
             onToggleVoice={() => setVoiceOn((current) => !current)}
             isRunning={isRunning}
-            onRecordingStateChange={(recording) => advanceStatus(recording ? "listening" : "transcribing")}
+            onRecordingStateChange={(recording) => {
+              if (recording) {
+                recordingStartRef.current = Date.now();
+              }
+              advanceStatus(recording ? "listening" : "transcribing");
+            }}
           />
           <AgentPlan intent={intentLabel(detectedIntent)} explanation={planExplanation} steps={planSteps} />
 

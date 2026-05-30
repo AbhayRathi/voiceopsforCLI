@@ -66,7 +66,7 @@ export default function VoiceControl({ onSubmitUtterance, onSubmitPreset, finalT
       recognition.stop();
       recognitionRef.current = null;
     };
-  }, [onSubmitUtterance]);
+  }, [onSubmitUtterance, onRecordingStateChange]);
 
   const buttonLabel = useMemo(() => {
     if (!supportsVoice) return "Voice unavailable";
