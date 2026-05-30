@@ -113,6 +113,22 @@ NEXT_PUBLIC_DEMO_MODE=true \
 npm run dev
 ```
 
+## Optional Cekura evaluator
+
+VoiceOps includes a local evaluator by default. For production-style QA, VoiceOps can optionally send the session log to Cekura as an external evaluator.
+
+Example:
+
+```bash
+EVALUATOR_PROVIDER=cekura
+CEKURA_API_KEY=...
+CEKURA_BASE_URL=...
+CEKURA_AGENT_ID=...
+CEKURA_SCENARIO_ID=repo_pre_push_safety
+```
+
+If Cekura is unavailable, VoiceOps falls back to the local evaluator.
+
 ## Scripts
 
 ```bash
