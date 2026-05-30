@@ -9,6 +9,7 @@ It is designed for deterministic hackathon demos:
 - ✅ pre-push readiness scoring
 - ✅ post-session evaluation + learned guardrails
 - ✅ optional browser speech recognition and text-to-speech
+- ✅ optional OpenAI integration (transcription + AI planning) — gracefully degraded
 
 ## Tech stack
 
@@ -16,14 +17,34 @@ It is designed for deterministic hackathon demos:
 - Tailwind CSS v4
 - Backend API route for guarded command execution (`/api/execute-command`)
 
-## Quick start
+## Quick start (demo mode — no API keys required)
 
 ```bash
+cp .env.example .env.local   # enables demo mode + sets NEXT_PUBLIC_DEMO_MODE
+npm install
+npm run dev
+# Open http://localhost:3000
+```
+
+## Quick start (with LLM — real transcription + AI planning)
+
+```bash
+cp .env.example .env.local
+# Edit .env.local:
+#   DEMO_MODE=false
+#   NEXT_PUBLIC_DEMO_MODE=false
+#   OPENAI_API_KEY=sk-...
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+## Running tests
+
+```bash
+npm test           # vitest unit suite (5 tests — all pass)
+npm run test:ui    # vitest UI
+npm run lint       # eslint
+```
 
 ## Demo flow (recommended)
 
@@ -65,9 +86,13 @@ This ensures the UI still demonstrates:
 
 ## Optional environment variables
 
-- `VOICEOPS_TARGET_DIR` (optional): target repo directory for safe command execution. Defaults to the current app working directory.
+See `.env.example` for the full list. Key variables:
 
-No LLM key is required for core functionality.
+- `DEMO_MODE` / `NEXT_PUBLIC_DEMO_MODE` — set to `true` for hackathon demo
+- `OPENAI_API_KEY` — enables real transcription and AI planning
+- `VOICEOPS_TARGET_DIR` — target repo directory for safe command execution
+
+No LLM key is required for core functionality. `npm install` picks up all dependencies including the optional OpenAI SDK.
 
 ## Scripts
 
@@ -75,4 +100,5 @@ No LLM key is required for core functionality.
 npm run dev
 npm run lint
 npm run build
+npm test
 ```

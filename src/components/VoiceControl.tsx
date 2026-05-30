@@ -5,10 +5,12 @@ import { getSpeechRecognition } from "@/lib/speech";
 
 type Props = {
   onSubmitUtterance: (text: string) => void;
+  onSubmitPreset: (text: string) => void;
   finalText: string;
   voiceOn: boolean;
   onToggleVoice: () => void;
   isRunning: boolean;
+  onRecordingStateChange?: (recording: boolean) => void;
 };
 
 const presets = [
@@ -20,7 +22,7 @@ const presets = [
   "Clean everything up.",
 ];
 
-export default function VoiceControl({ onSubmitUtterance, finalText, voiceOn, onToggleVoice, isRunning }: Props) {
+export default function VoiceControl({ onSubmitUtterance, onSubmitPreset, finalText, voiceOn, onToggleVoice, isRunning, onRecordingStateChange }: Props) {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [recording, setRecording] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
@@ -49,8 +51,14 @@ export default function VoiceControl({ onSubmitUtterance, finalText, voiceOn, on
       if (final.trim()) onSubmitUtterance(final.trim());
     };
 
-    recognition.onend = () => setRecording(false);
-    recognition.onerror = () => setRecording(false);
+    recognition.onend = () => {
+      setRecording(false);
+      onRecordingStateChange?.(false);
+    };
+    recognition.onerror = () => {
+      setRecording(false);
+      onRecordingStateChange?.(false);
+    };
 
     recognitionRef.current = recognition;
 
@@ -58,7 +66,7 @@ export default function VoiceControl({ onSubmitUtterance, finalText, voiceOn, on
       recognition.stop();
       recognitionRef.current = null;
     };
-  }, [onSubmitUtterance]);
+  }, [onSubmitUtterance, onRecordingStateChange]);
 
   const buttonLabel = useMemo(() => {
     if (!supportsVoice) return "Voice unavailable";
@@ -70,10 +78,12 @@ export default function VoiceControl({ onSubmitUtterance, finalText, voiceOn, on
     if (recording) {
       recognitionRef.current.stop();
       setRecording(false);
+      onRecordingStateChange?.(false);
       return;
     }
     setLiveTranscript("");
     setRecording(true);
+    onRecordingStateChange?.(true);
     recognitionRef.current.start();
   };
 
@@ -126,7 +136,7 @@ export default function VoiceControl({ onSubmitUtterance, finalText, voiceOn, on
               type="button"
               key={preset}
               disabled={isRunning}
-              onClick={() => onSubmitUtterance(preset)}
+              onClick={() => onSubmitPreset(preset)}
               className="rounded-md border border-slate-600 bg-slate-800 px-3 py-1 text-xs text-slate-100 hover:border-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {preset}

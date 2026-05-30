@@ -11,6 +11,46 @@ const MAX_BUFFER = 1024 * 1024;
 const MAX_CHANGED_FILES = 30;
 const MAX_SCAN_FILE_SIZE_BYTES = 1024 * 1024;
 
+function isDemoMode(): boolean {
+  return process.env.DEMO_MODE === "true" || process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+}
+
+const DEMO_OUTPUTS: Record<string, { output: string; exitCode: number }> = {
+  "git status": {
+    output:
+      "On branch feature/voiceops-demo\nChanges not staged for commit:\n  modified: src/app/page.tsx\n  modified: src/lib/mockData.ts\nUntracked files:\n  src/lib/status.ts",
+    exitCode: 0,
+  },
+  "git diff --stat": {
+    output:
+      " src/app/page.tsx | 124 +++++++++++++++++++++++\n src/lib/mockData.ts | 78 ++++++++++++++\n 2 files changed, 202 insertions(+)",
+    exitCode: 0,
+  },
+  "git diff --name-only": {
+    output: "src/app/page.tsx\nsrc/lib/mockData.ts",
+    exitCode: 0,
+  },
+  "npm test": {
+    output:
+      "FAIL src/lib/safety.test.ts\n  classifyCommandSafety\n    ✕ blocks rm when called from voice (8ms)\n\nExpected: 'blocked'\nReceived: 'allowed'\n\nTest Suites: 1 failed, 1 total\nTests:       1 failed, 3 passed, 4 total",
+    exitCode: 1,
+  },
+  "npm run lint": {
+    output: "Lint passed. No issues found.",
+    exitCode: 0,
+  },
+  "npm audit --audit-level=high": {
+    output:
+      "found 1 high severity vulnerability\n  lodash  <4.17.21  Prototype Pollution\n  fix available via `npm audit fix`",
+    exitCode: 1,
+  },
+  secret_scan_changed_files: {
+    output:
+      'Potential secret findings:\n- Generic API Key pattern in src/lib/mockData.ts (api_key = "sk-demo-fake-key-for-testing")',
+    exitCode: 1,
+  },
+};
+
 const EXECUTION_MAP: Record<string, { file: string; args: string[] }> = {
   pwd: { file: "pwd", args: [] },
   ls: { file: "ls", args: [] },
@@ -149,6 +189,41 @@ export async function POST(request: NextRequest) {
 
   const start = Date.now();
   const repoDir = resolveRepoDir();
+
+  // DEMO_MODE: return deterministic mock output without executing anything real
+  if (isDemoMode()) {
+    const demoOut = DEMO_OUTPUTS[command];
+    if (demoOut) {
+      return NextResponse.json({
+        command,
+        purpose: body.purpose ?? "",
+        riskLevel: safetyDecision.riskLevel,
+        status: safetyDecision.status,
+        reason: safetyDecision.reason,
+        stdout: demoOut.output,
+        stderr: "",
+        output: demoOut.output,
+        exitCode: demoOut.exitCode,
+        durationMs: Math.floor(Math.random() * 200) + 50,
+        executed: true,
+        usedMock: true,
+      });
+    }
+    return NextResponse.json({
+      command,
+      purpose: body.purpose ?? "",
+      riskLevel: "high",
+      status: "blocked",
+      reason: "Command is not in demo allowlist.",
+      stdout: "",
+      stderr: "",
+      output: "Demo mode: command not in demo allowlist.",
+      exitCode: null,
+      durationMs: 0,
+      executed: false,
+      usedMock: true,
+    });
+  }
 
   try {
     if (command === "secret_scan_changed_files") {
