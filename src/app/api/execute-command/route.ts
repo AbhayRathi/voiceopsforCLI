@@ -1,15 +1,14 @@
 import { execFile } from "child_process";
-import { promises as fs } from "fs";
-import path from "path";
 import { promisify } from "util";
 import { NextRequest, NextResponse } from "next/server";
 import { classifyCommandSafety } from "@/lib/safety";
+import { secretScanAllFiles } from "@/lib/secretScan";
+import { resolveAuditCommand, isAuditUnavailableError } from "@/lib/audit";
 
 const execFileAsync = promisify(execFile);
 const COMMAND_TIMEOUT_MS = 15000;
 const MAX_BUFFER = 1024 * 1024;
-const MAX_CHANGED_FILES = 30;
-const MAX_SCAN_FILE_SIZE_BYTES = 1024 * 1024;
+const AUDIT_COMMAND = "npm audit --audit-level=high";
 
 function isDemoMode(): boolean {
   return process.env.DEMO_MODE === "true" || process.env.NEXT_PUBLIC_DEMO_MODE === "true";
@@ -36,17 +35,22 @@ const DEMO_OUTPUTS: Record<string, { output: string; exitCode: number }> = {
     exitCode: 1,
   },
   "npm run lint": {
-    output: "Lint passed. No issues found.",
+    output: "⚠ TODO found in src/app/page.tsx — clean up before merge.\nLint passed with warnings.",
     exitCode: 0,
+  },
+  "npm run audit:mock": {
+    output:
+      "DEMO-CVE-2024-00001\n  demo-package  <1.0.0  Insecure default configuration\n  severity: moderate\n  fix available via `npm update demo-package`\n\n1 moderate severity vulnerability found.",
+    exitCode: 1,
   },
   "npm audit --audit-level=high": {
     output:
       "found 1 high severity vulnerability\n  lodash  <4.17.21  Prototype Pollution\n  fix available via `npm audit fix`",
     exitCode: 1,
   },
-  secret_scan_changed_files: {
+  secret_scan_all_files: {
     output:
-      'Potential secret findings:\n- Generic API Key pattern in src/lib/mockData.ts (api_key = "sk-demo-fake-key-for-testing")',
+      "Potential secret findings:\n- Potential secret-like value found in src/config.js. It appears to be marked as fake/demo-only, but should still be reviewed before push.",
     exitCode: 1,
   },
 };
@@ -63,68 +67,11 @@ const EXECUTION_MAP: Record<string, { file: string; args: string[] }> = {
   "npm test": { file: "npm", args: ["test"] },
   "npm run test": { file: "npm", args: ["run", "test"] },
   "npm run lint": { file: "npm", args: ["run", "lint"] },
-  "npm audit --audit-level=high": { file: "npm", args: ["audit", "--audit-level=high"] },
   "find ./logs -type f -mtime +30 -print": { file: "find", args: ["./logs", "-type", "f", "-mtime", "+30", "-print"] },
 };
 
 function resolveRepoDir(): string {
   return process.env.VOICEOPS_TARGET_DIR || process.cwd();
-}
-
-async function secretScanChangedFiles(repoDir: string): Promise<{ output: string; exitCode: number }> {
-  const diff = await execFileAsync("git", ["diff", "--name-only"], { cwd: repoDir, timeout: 5000, maxBuffer: MAX_BUFFER }).catch(() => ({ stdout: "" }));
-  const changedFiles = (diff.stdout || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, MAX_CHANGED_FILES);
-
-  if (!changedFiles.length) {
-    return { output: "No changed files found for secret scan.", exitCode: 0 };
-  }
-
-  const secretRegexes: Array<{ label: string; regex: RegExp }> = [
-    { label: "AWS Access Key", regex: /AKIA[0-9A-Z]{16}/ },
-    { label: "Private Key Block", regex: /-----BEGIN[\s\w-]*PRIVATE KEY-----/i },
-    { label: "Generic API Key", regex: /(api[_-]?key|token|secret)\s*[:=]\s*["'][^"']{10,}["']/i },
-  ];
-
-  const findings: string[] = [];
-  const skippedLargeFiles: string[] = [];
-
-  for (const file of changedFiles) {
-    const absolutePath = path.join(repoDir, file);
-    try {
-      const stat = await fs.stat(absolutePath);
-      if (!stat.isFile()) continue;
-      if (stat.size > MAX_SCAN_FILE_SIZE_BYTES) {
-        skippedLargeFiles.push(file);
-        continue;
-      }
-      const content = await fs.readFile(absolutePath, "utf8");
-
-      for (const secretRegex of secretRegexes) {
-        if (secretRegex.regex.test(content)) {
-          findings.push(`${secretRegex.label} pattern in ${file}`);
-        }
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  const skipNote = skippedLargeFiles.length
-    ? `\nSkipped ${skippedLargeFiles.length} large file(s) (>1MB): ${skippedLargeFiles.join(", ")}`
-    : "";
-
-  if (!findings.length) {
-    return { output: `No obvious secrets found in changed files.${skipNote}`.trim(), exitCode: 0 };
-  }
-
-  return {
-    output: `Potential secret findings:\n${findings.map((finding) => `- ${finding}`).join("\n")}${skipNote}`.trim(),
-    exitCode: 1,
-  };
 }
 
 function formatHelpfulOutput(command: string, stdout: string, stderr: string, exitCode: number | null): string {
@@ -133,7 +80,7 @@ function formatHelpfulOutput(command: string, stdout: string, stderr: string, ex
   if (/Missing script: "lint"/i.test(combined)) return "No lint script found.";
   if (/Missing script: "test"/i.test(combined) || /npm ERR! missing script: test/i.test(combined)) return "No test script found.";
   if (/npm audit/i.test(combined) && /ENOLOCK|requires an existing lockfile/i.test(combined)) {
-    return "npm audit unavailable because a lockfile is missing.";
+    return "Dependency audit unavailable: missing lockfile or unsupported project setup.";
   }
   if (/not found/i.test(combined) || /is not recognized/i.test(combined)) {
     return `${command} is unavailable in this environment.`;
@@ -192,7 +139,9 @@ export async function POST(request: NextRequest) {
 
   // DEMO_MODE: return deterministic mock output without executing anything real
   if (isDemoMode()) {
-    const demoOut = DEMO_OUTPUTS[command];
+    // In demo mode, show audit:mock output for the audit command to match expected demo behavior
+    const demoKey = command === "npm audit --audit-level=high" ? "npm run audit:mock" : command;
+    const demoOut = DEMO_OUTPUTS[demoKey];
     if (demoOut) {
       return NextResponse.json({
         command,
@@ -226,8 +175,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    if (command === "secret_scan_changed_files") {
-      const secretResult = await secretScanChangedFiles(repoDir);
+    if (command === "secret_scan_all_files") {
+      const secretResult = await secretScanAllFiles(repoDir);
       return NextResponse.json({
         command,
         purpose: body.purpose ?? "",
@@ -242,6 +191,72 @@ export async function POST(request: NextRequest) {
         executed: true,
         usedMock: false,
       });
+    }
+
+    if (command === AUDIT_COMMAND) {
+      const resolved = await resolveAuditCommand(repoDir);
+      const resolvedCmd = `${resolved.file} ${resolved.args.join(" ")}`;
+      const usingMock = resolvedCmd !== AUDIT_COMMAND;
+      try {
+        const { stdout, stderr } = await execFileAsync(resolved.file, resolved.args, {
+          cwd: repoDir,
+          timeout: COMMAND_TIMEOUT_MS,
+          maxBuffer: MAX_BUFFER,
+        });
+        const note = usingMock ? `[Running ${resolvedCmd} per package.json]\n` : "";
+        return NextResponse.json({
+          command,
+          purpose: body.purpose ?? "",
+          riskLevel: safetyDecision.riskLevel,
+          status: safetyDecision.status,
+          reason: safetyDecision.reason,
+          stdout,
+          stderr,
+          output: note + formatHelpfulOutput(command, stdout, stderr, 0),
+          exitCode: 0,
+          durationMs: Date.now() - start,
+          executed: true,
+          usedMock: false,
+        });
+      } catch (auditError: unknown) {
+        const details = auditError as { stdout?: string; stderr?: string; code?: number; killed?: boolean };
+        const stdout = details.stdout ?? "";
+        const stderr = details.stderr ?? "";
+        const exitCode = typeof details.code === "number" ? details.code : null;
+
+        if (isAuditUnavailableError(stderr, stdout)) {
+          return NextResponse.json({
+            command,
+            purpose: body.purpose ?? "",
+            riskLevel: safetyDecision.riskLevel,
+            status: safetyDecision.status,
+            reason: safetyDecision.reason,
+            stdout,
+            stderr,
+            output: "Dependency audit unavailable: missing lockfile or unsupported project setup.",
+            exitCode,
+            durationMs: Date.now() - start,
+            executed: true,
+            usedMock: false,
+          });
+        }
+
+        const note = usingMock ? `[Running ${resolvedCmd} per package.json]\n` : "";
+        return NextResponse.json({
+          command,
+          purpose: body.purpose ?? "",
+          riskLevel: safetyDecision.riskLevel,
+          status: safetyDecision.status,
+          reason: details.killed ? "Command timed out." : safetyDecision.reason,
+          stdout,
+          stderr,
+          output: note + formatHelpfulOutput(command, stdout, stderr, exitCode),
+          exitCode,
+          durationMs: Date.now() - start,
+          executed: true,
+          usedMock: false,
+        });
+      }
     }
 
     const executable = EXECUTION_MAP[command];

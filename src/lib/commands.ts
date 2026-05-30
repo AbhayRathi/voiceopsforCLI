@@ -20,15 +20,15 @@ export function buildPlan(intent: Intent): { explanation: string; steps: PlanSte
           },
           {
             id: "secret_scan",
-            title: "Scan changed files for possible secrets",
-            command: "secret_scan_changed_files",
-            purpose: "Detect leaked credentials in modified files",
+            title: "Scan all repo files for possible secrets",
+            command: "secret_scan_all_files",
+            purpose: "Detect leaked credentials across the entire repo",
           },
         ],
       };
     case "security_check":
       return {
-        explanation: "I’ll run a focused security check: dependency audit and a secret scan on changed files.",
+        explanation: "I'll run a focused security check: dependency audit and a secret scan on all repo files.",
         steps: [
           {
             id: "audit",
@@ -38,8 +38,8 @@ export function buildPlan(intent: Intent): { explanation: string; steps: PlanSte
           },
           {
             id: "secret_scan",
-            title: "Scan changed files for secrets",
-            command: "secret_scan_changed_files",
+            title: "Scan all repo files for secrets",
+            command: "secret_scan_all_files",
             purpose: "Detect potential token or key leaks",
           },
         ],
