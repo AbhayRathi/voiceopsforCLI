@@ -21,7 +21,7 @@ The demo uses a companion repo, [`voiceops-demo-repo`](https://github.com/AbhayR
 
 ## 2. Video demo
 
-**Demo video:** [Add <60 second video link here]
+LINK: https://drive.google.com/file/d/1ocbeoeM491FXlrTBU9WM3AVkD9uierHh/view?usp=sharing
 
 The video shows:
 
