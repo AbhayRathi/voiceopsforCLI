@@ -1,9 +1,17 @@
 # VoiceOps Guard
 
-VoiceOps Guard is a live **voice-controlled terminal safety agent** for repo health checks and push readiness.
+VoiceOps Guard is a CLI-launched local voice agent for safe terminal operations. You run it next to a repo, speak natural developer requests, and it executes only guarded, allowlisted terminal checks. It can inspect repo health, explain failures, block risky actions, and evaluate the session into learned guardrails.
 
-It is designed for deterministic hackathon demos:
+## Architecture
+
+```
+Terminal repo context → local VoiceOps backend → browser voice console → guarded command executor → session evaluator → learned guardrails
+```
+
+## Key features
+
 - ✅ fallback preset utterances (no microphone dependency)
+- ✅ natural language intent matching (synonyms for all core commands)
 - ✅ guarded command execution with allowlist + risk classifier
 - ✅ blocked risky operations (including `git push`)
 - ✅ pre-push readiness scoring
@@ -41,19 +49,66 @@ npm run dev
 ## Running tests
 
 ```bash
-npm test           # vitest unit suite (5 tests — all pass)
+npm test           # vitest unit suite — all pass
 npm run test:ui    # vitest UI
 npm run lint       # eslint
 ```
 
-## Demo flow (recommended)
+---
 
-Use fallback preset buttons in this order:
-1. **Check if this repo is safe to push.**
-2. **Explain the test failure.**
-3. **Commit everything and push.**
-4. Click **Evaluate Session**.
-5. **Clean everything up.**
+## 3-minute demo script
+
+### Setup — real/API demo
+
+```bash
+VOICEOPS_TARGET_DIR=/absolute/path/to/voiceops-demo-repo \
+DEMO_MODE=false \
+NEXT_PUBLIC_DEMO_MODE=false \
+OPENAI_API_KEY=your_openai_key \
+OPENAI_MODEL=gpt-4o-mini \
+OPENAI_STT_MODEL=whisper-1 \
+EVALUATOR_PROVIDER=cekura \
+CEKURA_API_KEY=your_cekura_key \
+CEKURA_BASE_URL=https://api.cekura.ai \
+npm run dev
+```
+
+### Setup — fallback demo (no API keys required)
+
+```bash
+VOICEOPS_TARGET_DIR=/absolute/path/to/voiceops-demo-repo \
+DEMO_MODE=true \
+NEXT_PUBLIC_DEMO_MODE=true \
+EVALUATOR_PROVIDER=local \
+npm run dev
+```
+
+### Demo narration
+
+1. Target the intentionally broken demo repo.
+2. Ask: **"Check if this repo is safe to push."**
+   - Show concrete findings: failing auth test, lint TODO, mock audit warning, fake secret-like value.
+3. Ask: **"Explain the test failure."**
+4. Ask: **"Commit everything and push."**
+   - Show that push is blocked/gated because tests are failing.
+5. Ask: **"Clean everything up."**
+   - Show destructive cleanup is blocked.
+6. Click **"Evaluate Session."**
+   - Show evaluator badge, Production Ops Score, and learned guardrail.
+
+---
+
+## Cekura evaluator integration
+
+VoiceOps emits a structured session log after every voice-terminal session. The local evaluator scores this log by default. When Cekura is configured, VoiceOps can send the same session log to Cekura as an external QA/evaluation layer. If Cekura is unavailable, VoiceOps falls back to local evaluation.
+
+```bash
+EVALUATOR_PROVIDER=cekura
+CEKURA_API_KEY=...
+CEKURA_BASE_URL=...
+CEKURA_AGENT_ID=...
+CEKURA_SCENARIO_ID=repo_pre_push_safety
+```
 
 ## Voice mode
 
@@ -93,41 +148,6 @@ See `.env.example` for the full list. Key variables:
 - `VOICEOPS_TARGET_DIR` — target repo directory for safe command execution
 
 No LLM key is required for core functionality. `npm install` picks up all dependencies including the optional OpenAI SDK.
-
-## Demo against voiceops-demo-repo
-
-```bash
-# Real mode (requires OpenAI API key and voiceops-demo-repo cloned locally)
-VOICEOPS_TARGET_DIR=/absolute/path/to/voiceops-demo-repo \
-DEMO_MODE=false \
-NEXT_PUBLIC_DEMO_MODE=false \
-OPENAI_API_KEY=your_key_here \
-npm run dev
-```
-
-```bash
-# Fallback demo mode (no API key required)
-VOICEOPS_TARGET_DIR=/absolute/path/to/voiceops-demo-repo \
-DEMO_MODE=true \
-NEXT_PUBLIC_DEMO_MODE=true \
-npm run dev
-```
-
-## Optional Cekura evaluator
-
-VoiceOps includes a local evaluator by default. For production-style QA, VoiceOps can optionally send the session log to Cekura as an external evaluator.
-
-Example:
-
-```bash
-EVALUATOR_PROVIDER=cekura
-CEKURA_API_KEY=...
-CEKURA_BASE_URL=...
-CEKURA_AGENT_ID=...
-CEKURA_SCENARIO_ID=repo_pre_push_safety
-```
-
-If Cekura is unavailable, VoiceOps falls back to the local evaluator.
 
 ## Scripts
 

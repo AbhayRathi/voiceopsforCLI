@@ -27,8 +27,8 @@ const responses: Record<Intent | "default", FallbackResponse> = {
     spokenSummary: "I won't delete anything without explicit confirmation.",
   },
   unknown: {
-    summary: "Intent unclear. Ask a concise clarification question.",
-    spokenSummary: "Can you clarify what you want me to check?",
+    summary: "Intent unclear. I can help with repo readiness, test failures, security scans, guarded commit/push, or cleanup safety.",
+    spokenSummary: "I can help with repo readiness, test failures, security scans, guarded commit/push, or cleanup safety. What would you like me to check?",
   },
   default: {
     summary: "Processing your request.",
