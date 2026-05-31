@@ -2,7 +2,7 @@
 
 ## 1. What is this?
 
-VoiceOps Guard is a CLI-launched local voice agent for safe terminal operations.
+VoiceOps Guard is a CLI-launched local voice agent for safe terminal operations. IT IS MEANT TO LIVE IN THE TERMINAL, BUT HAS A UI WITH A VOICE PLANE FOR THE SAKE OF THE DEMO!!
 
 You run it next to a code repo, speak natural developer requests like **“check if this repo is safe to push,”** and VoiceOps runs only guarded, allowlisted terminal checks. It can inspect repo health, explain failing tests, scan for secret-like values, block risky actions like `git push` or destructive cleanup, and turn each session into an evaluation report with learned guardrails.
 
