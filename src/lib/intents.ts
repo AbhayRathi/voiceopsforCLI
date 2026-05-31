@@ -67,7 +67,7 @@ const intentMatchers: Array<{ intent: Intent; patterns: RegExp[] }> = [
     intent: "cleanup_delete",
     patterns: [
       /clean everything up/i,
-      /clean ?up/i,
+      /\bclean ?up\b/i,
       /delete (old )?logs/i,
       /remove cache/i,
       /clear temp files/i,
